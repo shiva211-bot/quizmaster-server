@@ -3,7 +3,7 @@ const p='server.js';
 let s=fs.readFileSync(p,'utf8');
 
 const notificationMarker=`CREATE TABLE IF NOT EXISTS notification_reads(notification_id INTEGER NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,read_at TIMESTAMPTZ DEFAULT NOW(),PRIMARY KEY(notification_id,user_id));`;
-const notificationPatched=`CREATE TABLE IF NOT EXISTS notification_reads(notification_id INTEGER NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,read_at TIMESTAMPTZ DEFAULT NOW(),PRIMARY KEY(notification_id,user_id));CREATE TABLE IF NOT EXISTS exam_attempts(id SERIAL PRIMARY KEY,quiz_id INTEGER NOT NULL REFERENCES quizzes(id) ON DELETE CASCADE,user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,started_at TIMESTAMPTZ DEFAULT NOW());`;
+const notificationPatched=`CREATE TABLE IF NOT EXISTS notification_reads(notification_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,read_at TIMESTAMPTZ DEFAULT NOW(),PRIMARY KEY(notification_id,user_id));CREATE TABLE IF NOT EXISTS exam_attempts(id SERIAL PRIMARY KEY,quiz_id INTEGER NOT NULL REFERENCES quizzes(id) ON DELETE CASCADE,user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,started_at TIMESTAMPTZ DEFAULT NOW());`;
 if(s.includes(notificationMarker) && !s.includes('CREATE TABLE IF NOT EXISTS exam_attempts')) s=s.replace(notificationMarker,notificationPatched);
 
 const questionMarker=`await pool.query("ALTER TABLE questions ADD COLUMN IF NOT EXISTS answer TEXT NOT NULL DEFAULT ''");`;
@@ -35,5 +35,6 @@ let h=fs.readFileSync('index.html','utf8');
 const tag='<script src="/exam-controls-ui.js"></script>';
 if(!h.includes(tag)){h=h.replace('</body>',tag+'</body>');fs.writeFileSync('index.html',h)}
 fs.writeFileSync(p,'// Step 7 exam controls patched at startup.\n'+s);
+require('./production-security.js');
 require('./password-reset.js');
 require('./server.js');
