@@ -4,7 +4,7 @@ const serverPath='server.js';
 let s=fs.readFileSync(serverPath,'utf8');
 
 const dbMarker='CREATE TABLE IF NOT EXISTS exam_attempts(id SERIAL PRIMARY KEY,quiz_id INTEGER NOT NULL REFERENCES quizzes(id) ON DELETE CASCADE,user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,started_at TIMESTAMPTZ DEFAULT NOW());`);';
-const dbInsert=dbMarker+'await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT");await pool.query("CREATE TABLE IF NOT EXISTS password_reset_tokens(id SERIAL PRIMARY KEY,user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,token_hash TEXT UNIQUE NOT NULL,expires_at TIMESTAMPTZ NOT NULL,created_at TIMESTAMPTZ DEFAULT NOW())");if(process.env.TEACHER_EMAIL&&process.env.TEACHER_USERNAME){await pool.query("UPDATE users SET email=$1 WHERE username=$2 AND role='teacher'",[String(process.env.TEACHER_EMAIL).trim().toLowerCase(),String(process.env.TEACHER_USERNAME).trim().toLowerCase()])}';
+const dbInsert=dbMarker+`await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT");await pool.query("CREATE TABLE IF NOT EXISTS password_reset_tokens(id SERIAL PRIMARY KEY,user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,token_hash TEXT UNIQUE NOT NULL,expires_at TIMESTAMPTZ NOT NULL,created_at TIMESTAMPTZ DEFAULT NOW())");if(process.env.TEACHER_EMAIL&&process.env.TEACHER_USERNAME){await pool.query("UPDATE users SET email=$1 WHERE username=$2 AND role='teacher'",[String(process.env.TEACHER_EMAIL).trim().toLowerCase(),String(process.env.TEACHER_USERNAME).trim().toLowerCase()])}`;
 if(s.includes(dbMarker)&&!s.includes('password_reset_tokens'))s=s.replace(dbMarker,dbInsert);
 
 const authMarker='app.post("/api/auth/register"';
