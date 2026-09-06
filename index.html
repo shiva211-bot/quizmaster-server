@@ -4,317 +4,144 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
 <title>QuizMaster Admin</title>
-
 <style>
-body{
-  font-family:system-ui;
-  margin:0;
-  padding:20px;
-  background:#f5f5f5;
-}
-.card{
-  background:white;
-  padding:20px;
-  margin-bottom:20px;
-  border-radius:10px;
-}
-input,textarea,button{
-  display:block;
-  width:100%;
-  box-sizing:border-box;
-  margin:8px 0;
-  padding:10px;
-}
-button{
-  cursor:pointer;
-}
-.question{
-  border:1px solid #ddd;
-  padding:15px;
-  margin:10px 0;
-  border-radius:8px;
-}
+body{font-family:system-ui;margin:0;padding:20px;background:#f5f5f5}
+.card{background:white;padding:20px;margin-bottom:20px;border-radius:10px}
+input,textarea,button,select{display:block;width:100%;box-sizing:border-box;margin:8px 0;padding:10px}
+button{cursor:pointer}
+.question{border:1px solid #ddd;padding:15px;margin:10px 0;border-radius:8px}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:700px}
+th,td{border:1px solid #ddd;padding:10px;text-align:left}
+th{background:#f0f0f0}
+.empty{color:#666}
 </style>
 </head>
-
 <body>
-
 <h1>QuizMaster Admin</h1>
 
 <div class="card">
 <h2>Create Quiz</h2>
-
 <input id="title" placeholder="Quiz title">
-
 <textarea id="description" placeholder="Description"></textarea>
-
 <input id="duration" type="number" placeholder="Duration in minutes" value="10">
-
 <div id="questions"></div>
-
 <button onclick="add()">Add Question</button>
-
 <button onclick="create()">Create Quiz</button>
 </div>
 
 <div class="card">
 <h2>Existing Quizzes</h2>
-
 <div id="list">Loading...</div>
 </div>
 
+<div class="card">
+<h2>Student Results</h2>
+<button onclick="loadResults()">Refresh Results</button>
+<div id="results">Loading...</div>
+</div>
+
 <script>
-
-const API = location.origin + "/api";
-
-let questions = [];
-
+const API=location.origin+"/api";
+let questions=[];
 
 function add(){
-
-  questions.push({
-    text:"",
-    options:["","","",""],
-    correct:0
-  });
-
+  questions.push({text:"",options:["","","",""],correct:0});
   draw();
 }
-
 
 function draw(){
-
-  const box = document.getElementById("questions");
-
-  box.innerHTML = "";
-
+  const box=document.getElementById("questions");
+  box.innerHTML="";
   questions.forEach((q,i)=>{
-
-    box.insertAdjacentHTML(
-      "beforeend",
-
-      `
+    box.insertAdjacentHTML("beforeend",`
       <div class="question">
-
         <b>Question ${i+1}</b>
-
-        <textarea
-          placeholder="Question"
-          oninput="questions[${i}].text=this.value"
-        >${q.text}</textarea>
-
-        <input
-          placeholder="Option A"
-          oninput="questions[${i}].options[0]=this.value"
-          value="${q.options[0]}"
-        >
-
-        <input
-          placeholder="Option B"
-          oninput="questions[${i}].options[1]=this.value"
-          value="${q.options[1]}"
-        >
-
-        <input
-          placeholder="Option C"
-          oninput="questions[${i}].options[2]=this.value"
-          value="${q.options[2]}"
-        >
-
-        <input
-          placeholder="Option D"
-          oninput="questions[${i}].options[3]=this.value"
-          value="${q.options[3]}"
-        >
-
+        <textarea placeholder="Question" oninput="questions[${i}].text=this.value">${q.text}</textarea>
+        <input placeholder="Option A" oninput="questions[${i}].options[0]=this.value" value="${q.options[0]}">
+        <input placeholder="Option B" oninput="questions[${i}].options[1]=this.value" value="${q.options[1]}">
+        <input placeholder="Option C" oninput="questions[${i}].options[2]=this.value" value="${q.options[2]}">
+        <input placeholder="Option D" oninput="questions[${i}].options[3]=this.value" value="${q.options[3]}">
         <select onchange="questions[${i}].correct=Number(this.value)">
-
-          <option value="0" ${q.correct===0?"selected":""}>
-            Correct answer: A
-          </option>
-
-          <option value="1" ${q.correct===1?"selected":""}>
-            Correct answer: B
-          </option>
-
-          <option value="2" ${q.correct===2?"selected":""}>
-            Correct answer: C
-          </option>
-
-          <option value="3" ${q.correct===3?"selected":""}>
-            Correct answer: D
-          </option>
-
+          <option value="0" ${q.correct===0?"selected":""}>Correct answer: A</option>
+          <option value="1" ${q.correct===1?"selected":""}>Correct answer: B</option>
+          <option value="2" ${q.correct===2?"selected":""}>Correct answer: C</option>
+          <option value="3" ${q.correct===3?"selected":""}>Correct answer: D</option>
         </select>
-
-      </div>
-      `
-    );
-
+      </div>`);
   });
 }
-
 
 async function create(){
-
-  if(!document.getElementById("title").value.trim()){
-    alert("Enter a quiz title.");
-    return;
-  }
-
-  if(questions.length===0){
-    alert("Add at least one question.");
-    return;
-  }
-
-  const data = {
-
+  if(!document.getElementById("title").value.trim()){alert("Enter a quiz title.");return}
+  if(questions.length===0){alert("Add at least one question.");return}
+  const response=await fetch(API+"/quizzes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
     title:document.getElementById("title").value,
-
     description:document.getElementById("description").value,
-
     duration:Number(document.getElementById("duration").value)||10,
-
     questions:questions
-
-  };
-
-
-  const response = await fetch(
-    API + "/quizzes",
-    {
-      method:"POST",
-
-      headers:{
-        "Content-Type":"application/json"
-      },
-
-      body:JSON.stringify(data)
-    }
-  );
-
-
-  if(!response.ok){
-
-    alert("Failed to create quiz.");
-
-    return;
-  }
-
-
+  })});
+  if(!response.ok){alert("Failed to create quiz.");return}
   alert("Quiz created successfully.");
-
   document.getElementById("title").value="";
   document.getElementById("description").value="";
-
-  questions=[];
-
-  draw();
-
-  load();
+  questions=[];draw();load();
 }
-
 
 async function load(){
-
-  const response = await fetch(API + "/quizzes");
-
-  const data = await response.json();
-
-  const box = document.getElementById("list");
-
-  box.innerHTML="";
-
-
-  if(data.length===0){
-
-    box.innerHTML="<p>No quizzes created yet.</p>";
-
-    return;
-  }
-
-
-  data.forEach(q=>{
-
-    box.insertAdjacentHTML(
-
-      "beforeend",
-
-      `
-      <div class="question">
-
-        <b>${q.title}</b>
-
-        <p>${q.description || ""}</p>
-
-        <p>
-          Duration: ${q.duration} minutes
-        </p>
-
-        <p>
-          Status:
-          ${q.published ? "Published" : "Not published"}
-        </p>
-
-        ${
-          q.published
-          ?
-          `<button onclick="pub(${q.id},false)">
-             Unpublish
-           </button>`
-          :
-          `<button onclick="pub(${q.id},true)">
-             Publish
-           </button>`
-        }
-
-      </div>
-      `
-    );
-
-  });
-
+  try{
+    const response=await fetch(API+"/quizzes");
+    if(!response.ok)throw new Error("HTTP "+response.status);
+    const data=await response.json();
+    const box=document.getElementById("list");box.innerHTML="";
+    if(data.length===0){box.innerHTML="<p>No quizzes created yet.</p>";return}
+    data.forEach(q=>box.insertAdjacentHTML("beforeend",`<div class="question">
+      <b>${q.title}</b><p>${q.description||""}</p><p>Duration: ${q.duration} minutes</p>
+      <p>Status: ${q.published?"Published":"Not published"}</p>
+      ${q.published?`<button onclick="pub(${q.id},false)">Unpublish</button>`:`<button onclick="pub(${q.id},true)">Publish</button>`}
+    </div>`));
+  }catch(e){document.getElementById("list").innerHTML="<p>Failed to load quizzes.</p>"}
 }
 
-
 async function pub(id,value){
-
-  const response = await fetch(
-
-    API + "/quizzes/" + id + "/publish",
-
-    {
-      method:"PATCH",
-
-      headers:{
-        "Content-Type":"application/json"
-      },
-
-      body:JSON.stringify({
-        published:value
-      })
-    }
-
-  );
-
-
-  if(!response.ok){
-
-    alert("Failed to change quiz status.");
-
-    return;
-  }
-
-
+  const response=await fetch(API+"/quizzes/"+id+"/publish",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({published:value})});
+  if(!response.ok){alert("Failed to change quiz status.");return}
   load();
 }
 
+function formatDate(value){
+  if(!value)return "-";
+  const d=new Date(value);
+  return isNaN(d.getTime())?value:d.toLocaleString();
+}
+
+async function loadResults(){
+  const box=document.getElementById("results");
+  box.innerHTML="Loading...";
+  try{
+    const [resultsResponse,quizzesResponse]=await Promise.all([fetch(API+"/results"),fetch(API+"/quizzes")]);
+    if(!resultsResponse.ok||!quizzesResponse.ok)throw new Error("Request failed");
+    const results=await resultsResponse.json();
+    const quizzes=await quizzesResponse.json();
+    const quizNames={};
+    quizzes.forEach(q=>quizNames[q.id]=q.title);
+    if(results.length===0){box.innerHTML='<p class="empty">No student results yet.</p>';return}
+    let html='<div class="table-wrap"><table><thead><tr><th>Student</th><th>Roll No.</th><th>Quiz</th><th>Score</th><th>Percentage</th><th>Submitted</th></tr></thead><tbody>';
+    results.forEach(r=>{
+      html+=`<tr><td>${escapeHtml(r.student)}</td><td>${escapeHtml(r.roll)}</td><td>${escapeHtml(quizNames[r.quiz_id]||("Quiz #"+r.quiz_id))}</td><td>${r.score}/${r.total}</td><td>${r.percentage}%</td><td>${formatDate(r.submitted_at)}</td></tr>`;
+    });
+    html+='</tbody></table></div>';
+    box.innerHTML=html;
+  }catch(e){box.innerHTML='<p>Failed to load results. Please try again.</p>'}
+}
+
+function escapeHtml(value){
+  return String(value??"").replace(/[&<>\"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+}
 
 add();
-
 load();
-
+loadResults();
 </script>
-
 </body>
 </html>
