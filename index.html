@@ -1,8 +1,320 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>QuizMaster Admin</title><style>body{font-family:system-ui;margin:0;background:#f4f7fb;color:#172033}main{max-width:1000px;margin:30px auto;padding:20px}.card{background:white;padding:20px;border-radius:14px;margin:14px 0;box-shadow:0 3px 14px #0001}input,textarea{width:100%;padding:10px;margin:5px 0 12px;box-sizing:border-box}button{padding:10px 14px;border:0;border-radius:9px;background:#2563eb;color:white;font-weight:700;margin:4px;cursor:pointer}table{width:100%;border-collapse:collapse}td,th{padding:9px;border-bottom:1px solid #ddd;text-align:left}</style></head><body><main><div class=card><h1>QuizMaster Admin</h1><p>Create and publish online quizzes. Results are stored on the server.</p><input id=t placeholder="Quiz title"><textarea id=d placeholder="Description"></textarea><input id=dur type=number value=10 placeholder="Duration minutes"><div id=qs></div><button onclick=add()>+ Add MCQ</button><button onclick=create()>Create Quiz</button></div><div class=card><h2>Quizzes</h2><div id=list></div></div><div class=card><h2>Student Results</h2><div id=res></div></div></main><script>
-const API=location.protocol+"//"+location.hostname+":3000/api";let questions=[];
-function add(){questions.push({text:"",options:["","","",""],correct:0});draw()}
-function draw(){qs.innerHTML=questions.map((q,i)=>`<div class=card><b>Question ${i+1}</b><textarea placeholder="Question" oninput="questions[${i}].text=this.value">${q.text}</textarea>${q.options.map((o,j)=>`<input placeholder="Option ${String.fromCharCode(65+j)}" value="${o}" oninput="questions[${i}].options[${j}]=this.value"><label><input type=radio name=c${i} ${q.correct==j?"checked":""} onchange="questions[${i}].correct=${j}" style="width:auto"> Correct</label>`).join("")}</div>`).join("")}
-async function create(){let r=await fetch(API+"/quizzes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:t.value,description:d.value,duration:+dur.value,questions})});if(r.ok){questions=[];t.value="";d.value="";draw();load()}else alert("Could not create quiz")}
-async function load(){let q=await (await fetch(API+"/quizzes")).json();list.innerHTML=q.map(x=>`<div><b>${x.title}</b> — ${x.questions||""} <button onclick="pub(${x.id},${!x.published})">${x.published?"Unpublish":"Publish"}</button></div>`).join("");let rr=await(await fetch(API+"/results")).json();res.innerHTML=rr.length?`<table><tr><th>Student</th><th>Roll</th><th>Quiz ID</th><th>Score</th><th>%</th><th>Time</th></tr>${rr.map(x=>`<tr><td>${x.student}</td><td>${x.roll||""}</td><td>${x.quiz_id}</td><td>${x.score}/${x.total}</td><td>${x.percentage}%</td><td>${new Date(x.submitted_at).toLocaleString()}</td></tr>`).join("")}</table>`:"No results yet."}
-async function pub(id,v){await fetch(API+"/quizzes/"+id+"/publish",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({published:v})});load()}add();load();
-</script></body></html>
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+<title>QuizMaster Admin</title>
+
+<style>
+body{
+  font-family:system-ui;
+  margin:0;
+  padding:20px;
+  background:#f5f5f5;
+}
+.card{
+  background:white;
+  padding:20px;
+  margin-bottom:20px;
+  border-radius:10px;
+}
+input,textarea,button{
+  display:block;
+  width:100%;
+  box-sizing:border-box;
+  margin:8px 0;
+  padding:10px;
+}
+button{
+  cursor:pointer;
+}
+.question{
+  border:1px solid #ddd;
+  padding:15px;
+  margin:10px 0;
+  border-radius:8px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>QuizMaster Admin</h1>
+
+<div class="card">
+<h2>Create Quiz</h2>
+
+<input id="title" placeholder="Quiz title">
+
+<textarea id="description" placeholder="Description"></textarea>
+
+<input id="duration" type="number" placeholder="Duration in minutes" value="10">
+
+<div id="questions"></div>
+
+<button onclick="add()">Add Question</button>
+
+<button onclick="create()">Create Quiz</button>
+</div>
+
+<div class="card">
+<h2>Existing Quizzes</h2>
+
+<div id="list">Loading...</div>
+</div>
+
+<script>
+
+const API = location.origin + "/api";
+
+let questions = [];
+
+
+function add(){
+
+  questions.push({
+    text:"",
+    options:["","","",""],
+    correct:0
+  });
+
+  draw();
+}
+
+
+function draw(){
+
+  const box = document.getElementById("questions");
+
+  box.innerHTML = "";
+
+  questions.forEach((q,i)=>{
+
+    box.insertAdjacentHTML(
+      "beforeend",
+
+      `
+      <div class="question">
+
+        <b>Question ${i+1}</b>
+
+        <textarea
+          placeholder="Question"
+          oninput="questions[${i}].text=this.value"
+        >${q.text}</textarea>
+
+        <input
+          placeholder="Option A"
+          oninput="questions[${i}].options[0]=this.value"
+          value="${q.options[0]}"
+        >
+
+        <input
+          placeholder="Option B"
+          oninput="questions[${i}].options[1]=this.value"
+          value="${q.options[1]}"
+        >
+
+        <input
+          placeholder="Option C"
+          oninput="questions[${i}].options[2]=this.value"
+          value="${q.options[2]}"
+        >
+
+        <input
+          placeholder="Option D"
+          oninput="questions[${i}].options[3]=this.value"
+          value="${q.options[3]}"
+        >
+
+        <select onchange="questions[${i}].correct=Number(this.value)">
+
+          <option value="0" ${q.correct===0?"selected":""}>
+            Correct answer: A
+          </option>
+
+          <option value="1" ${q.correct===1?"selected":""}>
+            Correct answer: B
+          </option>
+
+          <option value="2" ${q.correct===2?"selected":""}>
+            Correct answer: C
+          </option>
+
+          <option value="3" ${q.correct===3?"selected":""}>
+            Correct answer: D
+          </option>
+
+        </select>
+
+      </div>
+      `
+    );
+
+  });
+}
+
+
+async function create(){
+
+  if(!document.getElementById("title").value.trim()){
+    alert("Enter a quiz title.");
+    return;
+  }
+
+  if(questions.length===0){
+    alert("Add at least one question.");
+    return;
+  }
+
+  const data = {
+
+    title:document.getElementById("title").value,
+
+    description:document.getElementById("description").value,
+
+    duration:Number(document.getElementById("duration").value)||10,
+
+    questions:questions
+
+  };
+
+
+  const response = await fetch(
+    API + "/quizzes",
+    {
+      method:"POST",
+
+      headers:{
+        "Content-Type":"application/json"
+      },
+
+      body:JSON.stringify(data)
+    }
+  );
+
+
+  if(!response.ok){
+
+    alert("Failed to create quiz.");
+
+    return;
+  }
+
+
+  alert("Quiz created successfully.");
+
+  document.getElementById("title").value="";
+  document.getElementById("description").value="";
+
+  questions=[];
+
+  draw();
+
+  load();
+}
+
+
+async function load(){
+
+  const response = await fetch(API + "/quizzes");
+
+  const data = await response.json();
+
+  const box = document.getElementById("list");
+
+  box.innerHTML="";
+
+
+  if(data.length===0){
+
+    box.innerHTML="<p>No quizzes created yet.</p>";
+
+    return;
+  }
+
+
+  data.forEach(q=>{
+
+    box.insertAdjacentHTML(
+
+      "beforeend",
+
+      `
+      <div class="question">
+
+        <b>${q.title}</b>
+
+        <p>${q.description || ""}</p>
+
+        <p>
+          Duration: ${q.duration} minutes
+        </p>
+
+        <p>
+          Status:
+          ${q.published ? "Published" : "Not published"}
+        </p>
+
+        ${
+          q.published
+          ?
+          `<button onclick="pub(${q.id},false)">
+             Unpublish
+           </button>`
+          :
+          `<button onclick="pub(${q.id},true)">
+             Publish
+           </button>`
+        }
+
+      </div>
+      `
+    );
+
+  });
+
+}
+
+
+async function pub(id,value){
+
+  const response = await fetch(
+
+    API + "/quizzes/" + id + "/publish",
+
+    {
+      method:"PATCH",
+
+      headers:{
+        "Content-Type":"application/json"
+      },
+
+      body:JSON.stringify({
+        published:value
+      })
+    }
+
+  );
+
+
+  if(!response.ok){
+
+    alert("Failed to change quiz status.");
+
+    return;
+  }
+
+
+  load();
+}
+
+
+add();
+
+load();
+
+</script>
+
+</body>
+</html>
