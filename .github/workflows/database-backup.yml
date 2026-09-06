@@ -24,13 +24,15 @@ jobs:
       - name: Install PostgreSQL 18 client
         shell: bash
         run: |
+          set -euo pipefail
           sudo apt-get update
           sudo install -d /usr/share/postgresql-common/pgdg
           curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo tee /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc >/dev/null
           echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(. /etc/os-release && echo $VERSION_CODENAME)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
           sudo apt-get update
           sudo apt-get install -y postgresql-client-18
-          pg_dump --version
+          /usr/lib/postgresql/18/bin/pg_dump --version
+          test "$(/usr/lib/postgresql/18/bin/pg_dump --version | awk '{print $3}' | cut -d. -f1)" = "18"
 
       - name: Create PostgreSQL backup
         shell: bash
@@ -38,7 +40,7 @@ jobs:
           set -euo pipefail
           mkdir -p backup
           stamp="$(date -u +%Y-%m-%dT%H-%M-%SZ)"
-          pg_dump "$DATABASE_URL" --format=custom --no-owner --no-acl --file="backup/quizmaster-${stamp}.dump"
+          /usr/lib/postgresql/18/bin/pg_dump "$DATABASE_URL" --format=custom --no-owner --no-acl --file="backup/quizmaster-${stamp}.dump"
           ls -lh backup/
 
       - name: Upload backup artifact
