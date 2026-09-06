@@ -14,8 +14,22 @@ if (!process.env.DATABASE_URL) {
 
 // Aiven Free PostgreSQL allows up to 20 database connections.
 // Keep the application pool small so the service stays well within that limit.
+// Aiven's connection URL may include sslmode=require. With newer pg versions,
+// that can be interpreted as certificate verification and reject Aiven's chain.
+// Remove sslmode from the URL and explicitly use TLS without certificate verification.
+let databaseUrl = process.env.DATABASE_URL;
+try {
+  const parsedUrl = new URL(databaseUrl);
+  parsedUrl.searchParams.delete("sslmode");
+  parsedUrl.searchParams.delete("uselibpqcompat");
+  databaseUrl = parsedUrl.toString();
+} catch (err) {
+  console.error("Invalid DATABASE_URL:", err.message);
+  process.exit(1);
+}
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: databaseUrl,
   ssl: { rejectUnauthorized: false },
   max: 5,
   idleTimeoutMillis: 30000,
