@@ -1,5 +1,6 @@
 {
   "scripts": {
+    "prestart": "node restore-teacher-account.js",
     "start": "node bootstrap.js"
   },
   "engines": {
