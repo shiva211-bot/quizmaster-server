@@ -16,7 +16,8 @@ function __qmKey(v){const out=[];const r=/(?:Q(?:uestion)?\\s*)?(\\d{1,4})\\s*(?
 function __qmParse(raw){
  const lines=String(raw||'').replace(/\\r/g,'').split('\\n').map(__qmLine).filter(Boolean),qs=[];let q=null,key=false,keyText='',expected=1;
  for(const line of lines){
-  if(/^answer\\s*key|^correct\\s*answers?\\b|^answers?\\s*[:=-]?\\s*$|^key\\s*[:=-]?\\s*$/i.test(line)){key=true;continue}
+  const kh=line.match(/^(?:answer\\s*key|correct\\s*answers?\\b|answers?\\s*[:=-]?|key\\s*[:=-]?)(.*)$/i);
+  if(kh){key=true;keyText+=' '+(kh[1]||'');continue}
   if(key){keyText+=' '+line;continue}
   const a=__qmQ(line);
   if(a){const n=Number(a[1]);const isLikelyQuestion=n===expected||n===1||n>expected;if(isLikelyQuestion){if(q)qs.push(q);q={number:n,text:a[2]||'',o:{A:'',B:'',C:'',D:''}};expected=n+1;continue}}
