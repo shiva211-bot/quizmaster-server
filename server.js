@@ -1,5 +1,5 @@
 const express=require("express"),cors=require("cors"),Database=require("better-sqlite3");
-const app=express();app.use(cors());app.use(express.json());
+const app=express();app.use(cors());app.use(express.json());app.use(express.static(__dirname));
 const db=new Database("quizmaster.db");
 db.exec(`CREATE TABLE IF NOT EXISTS quizzes(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,description TEXT,duration INTEGER NOT NULL,published INTEGER DEFAULT 0);
 CREATE TABLE IF NOT EXISTS questions(id INTEGER PRIMARY KEY AUTOINCREMENT,quiz_id INTEGER NOT NULL,text TEXT NOT NULL,a TEXT NOT NULL,b TEXT NOT NULL,c TEXT NOT NULL,d TEXT NOT NULL,correct INTEGER NOT NULL);
