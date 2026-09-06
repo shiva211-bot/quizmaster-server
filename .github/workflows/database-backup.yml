@@ -1,0 +1,44 @@
+name: QuizMaster Database Backup
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 2 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      PGSSLMODE: require
+    steps:
+      - name: Verify database secret
+        shell: bash
+        run: |
+          test -n "$DATABASE_URL" || { echo "DATABASE_URL GitHub secret is not configured"; exit 1; }
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Create PostgreSQL backup
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p backup
+          stamp="$(date -u +%Y-%m-%dT%H-%M-%SZ)"
+          pg_dump "$DATABASE_URL" --format=custom --no-owner --no-acl --file="backup/quizmaster-${stamp}.dump"
+          ls -lh backup/
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QuizMaster-Database-Backup-${{ github.run_number }}
+          path: backup/*.dump
+          if-no-files-found: error
+          retention-days: 30
