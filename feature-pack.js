@@ -40,4 +40,3 @@ if(!h2.includes('window.adminRefresh'))h2=h2.replace('</body>',adminScript+'</bo
 fs.writeFileSync('index.html',h2);
 
 fs.writeFileSync(p,'// Feature pack patched at startup.\n'+s);
-require('./server.js');
