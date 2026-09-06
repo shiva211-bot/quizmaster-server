@@ -11,8 +11,7 @@ const corsReplacement='app.use(cors({origin:(origin,callback)=>{const allowed=St
 if(s.includes(corsMarker)&&!s.includes('CORS_ORIGIN'))s=s.replace(corsMarker,corsReplacement);
 
 const authMarker='app.post("/api/auth/login",async(req,res)=>';
-const authRate='const loginLimiter=rateLimit({windowMs:15*60*1000,max:20,standardHeaders:true,legacyHeaders:false,message:{error:"Too many login attempts. Please try again later."}});const forgotLimiter=rateLimit({windowMs:15*60*1000,max:10,standardHeaders:true,legacyHeaders:false,message:{error:"Too many password reset requests. Please try again later."}});app.use("/api/auth/login",loginLimiter);app.use("/api/auth/register",loginLimiter);';
+const authRate='const loginLimiter=rateLimit({windowMs:15*60*1000,max:20,standardHeaders:true,legacyHeaders:false,message:{error:"Too many login attempts. Please try again later."}});app.use("/api/auth/login",loginLimiter);app.use("/api/auth/register",loginLimiter);';
 if(s.includes(authMarker)&&!s.includes('const loginLimiter='))s=s.replace(authMarker,authRate+authMarker);
 
 fs.writeFileSync(p,s);
-require('./start.js');
