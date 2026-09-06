@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "start": "node question-images.js"
+    "start": "node bootstrap.js"
   },
   "engines": {
     "node": ">=18"
@@ -8,8 +8,8 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.21.2",
-    "express-rate-limit": "^7.5.0",
     "helmet": "^8.1.0",
+    "express-rate-limit": "^7.5.0",
     "multer": "^1.4.5-lts.1",
     "pdf-parse": "^1.1.1",
     "mammoth": "^1.8.0",
