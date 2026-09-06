@@ -3,7 +3,10 @@ const p='index.html';
 let h=fs.readFileSync(p,'utf8');
 const tag='<script src="/question-importer-ui.js"></script>';
 const resetTag='<script src="/reset-system-ui.js"></script>';
-if(!h.includes(tag)||!h.includes(resetTag)){h=h.replace('</body>',(!h.includes(tag)?tag:'')+(!h.includes(resetTag)?resetTag:'')+'</body>');fs.writeFileSync(p,h)}
+const passwordRowTag='<script src="/student-password-reset-row-ui.js"></script>';
+const neededTags=( !h.includes(tag)?tag:'' )+( !h.includes(resetTag)?resetTag:'' )+( !h.includes(passwordRowTag)?passwordRowTag:'' );
+if(neededTags)h=h.replace('</body>',neededTags+'</body>');
+fs.writeFileSync(p,h);
 require('./intruder-security-v2.js');
 require('./exam-security-events.js');
 require('./student-phone.js');
