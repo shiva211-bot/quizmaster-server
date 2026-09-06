@@ -4,10 +4,12 @@ const pdfParse=require('pdf-parse');
 const mammoth=require('mammoth');
 const p='server.js';
 let s=fs.readFileSync(p,'utf8');
-const marker='/* QUIZMASTER_QUESTION_IMPORTER_V1 */';
+const marker='/* QUIZMASTER_QUESTION_IMPORTER_V2 */';
 if(s.includes(marker)) process.exit(0);
+const deps='const multer=require("multer");const pdfParse=require("pdf-parse");const mammoth=require("mammoth");';
 const code=`
 ${marker}
+${deps}
 const __qmUpload=multer({storage:multer.memoryStorage(),limits:{fileSize:10*1024*1024,files:1}});
 function __qmLine(v){return String(v||'').replace(/\\u00a0/g,' ').replace(/[ \\t]+/g,' ').trim()}
 function __qmQ(v){return v.match(/^\\s*(?:Q(?:uestion)?\\s*)?(\\d{1,4})[.)]\\s*(.*)$/i)}
