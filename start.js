@@ -33,7 +33,8 @@ s=s.replace('if(!q.rows.length)return res.status(404).json({error:"Quiz not foun
 
 let h=fs.readFileSync('index.html','utf8');
 const tag='<script src="/exam-controls-ui.js"></script>';
-if(!h.includes(tag)){h=h.replace('</body>',tag+'</body>');fs.writeFileSync('index.html',h)}
+const securityTag='<script src="/intruder-security-ui.js"></script>';
+if(!h.includes(tag)||!h.includes(securityTag)){h=h.replace('</body>',(!h.includes(tag)?tag:'')+(!h.includes(securityTag)?securityTag:'')+'</body>');fs.writeFileSync('index.html',h)}
 fs.writeFileSync(p,'// Step 7 exam controls patched at startup.\n'+s);
 require('./intruder-security.js');
 require('./production-security.js');
