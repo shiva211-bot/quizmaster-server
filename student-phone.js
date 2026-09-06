@@ -9,7 +9,7 @@ const old='const {username,password,name,roll,classLevel}=req.body,u=cleanText(u
 const neu='const {username,password,name,roll,phone,classLevel}=req.body,u=cleanText(username).toLowerCase(),n=cleanText(name),r=cleanText(roll),ph=cleanText(phone),cl=validClass(classLevel);';
 if(s.includes(old))s=s.replace(old,neu,1);
 const oldReq='if(!n||!r)return res.status(400).json({error:"Name and roll number are required"});';
-const neuReq='if(!n||!r||!ph)return res.status(400).json({error:"Name, roll number and phone number are required"});if(!/^\\d{10}$/.test(ph))return res.status(400).json({error:"Phone number must be exactly 10 digits"});';
+const neuReq='if(!n||!ph)return res.status(400).json({error:"Name and phone number are required"});if(!/^\\d{10}$/.test(ph))return res.status(400).json({error:"Phone number must be exactly 10 digits"});';
 if(s.includes(oldReq))s=s.replace(oldReq,neuReq,1);
 const oldInsert='INSERT INTO users(username,password_hash,role,name,roll,class_level) VALUES($1,$2,\'student\',$3,$4,$5) RETURNING id,username,role,name,roll,class_level';
 const newInsert='INSERT INTO users(username,password_hash,role,name,roll,phone,class_level) VALUES($1,$2,\'student\',$3,$4,$5,$6) RETURNING id,username,role,name,roll,phone,class_level';
