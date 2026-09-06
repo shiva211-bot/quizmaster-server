@@ -2,6 +2,7 @@ const fs=require('fs');
 const serverPath='server.js';
 let s=fs.readFileSync(serverPath,'utf8');
 
+s=s.replace('app.use(express.json());','app.use(express.json({limit:"4mb"}));');
 const qcol='await pool.query("ALTER TABLE questions ADD COLUMN IF NOT EXISTS answer TEXT NOT NULL DEFAULT \'\'");';
 const qcol2=qcol+'await pool.query("ALTER TABLE questions ADD COLUMN IF NOT EXISTS image_data TEXT NOT NULL DEFAULT \'\'");';
 if(s.includes(qcol)&&!s.includes('ALTER TABLE questions ADD COLUMN IF NOT EXISTS image_data'))s=s.replace(qcol,qcol2);
