@@ -39,4 +39,5 @@ fs.writeFileSync(p,'// Step 7 exam controls patched at startup.\n'+s);
 require('./intruder-security-v2.js');
 require('./production-security.js');
 require('./password-reset.js');
+require('./question-importer.js');
 require('./server.js');
