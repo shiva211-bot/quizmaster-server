@@ -8,5 +8,5 @@ require('./exam-security-events.js');
 require('./student-phone.js');
 require('./student-report.js');
 require('./student-performance-ui.js');
-require('./start.js');
 require('./feature-pack.js');
+require('./start.js');
