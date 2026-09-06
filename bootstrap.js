@@ -9,9 +9,13 @@ require('./exam-security-events.js');
 require('./student-phone.js');
 require('./student-report.js');
 require('./student-performance-ui.js');
-// feature-pack.js contains a generated server-side template that must preserve
-// ${exam.title} for the runtime result handler. Seed a literal placeholder while
-// the feature pack is evaluated, then remove it immediately after loading.
+// feature-pack.js contains generated server-side templates that must preserve
+// runtime placeholders such as ${exam.title}, ${score}, ${total}, ${percentage},
+// and ${questionOrder}. Seed literal placeholders while the feature pack is evaluated.
 global.exam={title:'${exam.title}'};
-try{require('./feature-pack.js')}finally{delete global.exam}
+global.score='${score}';
+global.total='${total}';
+global.percentage='${percentage}';
+global.questionOrder='${questionOrder}';
+try{require('./feature-pack.js')}finally{delete global.exam;delete global.score;delete global.total;delete global.percentage;delete global.questionOrder}
 require('./start.js');
