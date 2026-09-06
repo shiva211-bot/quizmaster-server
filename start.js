@@ -2,15 +2,8 @@ const fs=require('fs');
 const p='server.js';
 let s=fs.readFileSync(p,'utf8');
 
-function replaceOnce(oldText,newText){
-  if(!s.includes(oldText)) throw new Error('Exam-controls patch marker not found: '+oldText.slice(0,80));
-  if(!s.includes(newText)) s=s.replace(oldText,newText);
-}
-
-const notificationMarker=`CREATE TABLE IF NOT EXISTS notification_reads(notification_id INTEGER NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,read_at TIMESTAMPTZ DEFAULT NOW(),PRIMARY KEY(notification_id,user_id));`);
-`;
-const notificationPatched=`CREATE TABLE IF NOT EXISTS notification_reads(notification_id INTEGER NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,read_at TIMESTAMPTZ DEFAULT NOW(),PRIMARY KEY(notification_id,user_id));CREATE TABLE IF NOT EXISTS exam_attempts(id SERIAL PRIMARY KEY,quiz_id INTEGER NOT NULL REFERENCES quizzes(id) ON DELETE CASCADE,user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,started_at TIMESTAMPTZ DEFAULT NOW());`);
-`;
+const notificationMarker=`CREATE TABLE IF NOT EXISTS notification_reads(notification_id INTEGER NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,read_at TIMESTAMPTZ DEFAULT NOW(),PRIMARY KEY(notification_id,user_id));`;
+const notificationPatched=`CREATE TABLE IF NOT EXISTS notification_reads(notification_id INTEGER NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,read_at TIMESTAMPTZ DEFAULT NOW(),PRIMARY KEY(notification_id,user_id));CREATE TABLE IF NOT EXISTS exam_attempts(id SERIAL PRIMARY KEY,quiz_id INTEGER NOT NULL REFERENCES quizzes(id) ON DELETE CASCADE,user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,started_at TIMESTAMPTZ DEFAULT NOW());`;
 if(s.includes(notificationMarker) && !s.includes('CREATE TABLE IF NOT EXISTS exam_attempts')) s=s.replace(notificationMarker,notificationPatched);
 
 const questionMarker=`await pool.query("ALTER TABLE questions ADD COLUMN IF NOT EXISTS answer TEXT NOT NULL DEFAULT ''");`;
@@ -38,10 +31,9 @@ s=s.replace('const q=qr.rows[0],qs=await pool.query','const q=qr.rows[0];if(req.
 s=s.replace('const q=await pool.query("SELECT id FROM quizzes WHERE id=$1 AND published=TRUE AND class_level=$2",[quizId,req.user.class_level]);if(!q.rows.length)','const q=await pool.query("SELECT id,attempt_limit,start_at,end_at FROM quizzes WHERE id=$1 AND published=TRUE AND class_level=$2",[quizId,req.user.class_level]);if(!q.rows.length)');
 s=s.replace('if(!q.rows.length)return res.status(404).json({error:"Quiz not found or not available for your class"});const qs=await pool.query("SELECT id,correct,question_type,answer FROM questions WHERE quiz_id=$1 ORDER BY id",[quizId]);','if(!q.rows.length)return res.status(404).json({error:"Quiz not found or not available for your class"});const exam=q.rows[0],now=Date.now(),st=exam.start_at?new Date(exam.start_at).getTime():null,en=exam.end_at?new Date(exam.end_at).getTime():null;if(st&&now<st)return res.status(403).json({error:"Exam has not started yet"});if(en&&now>=en)return res.status(403).json({error:"Exam has ended"});const used=(await pool.query("SELECT COUNT(*)::int AS n FROM results WHERE quiz_id=$1 AND user_id=$2",[quizId,req.user.id])).rows[0].n;if(exam.attempt_limit>0&&used>=exam.attempt_limit)return res.status(403).json({error:"Attempt limit reached"});const qs=await pool.query("SELECT id,correct,question_type,answer FROM questions WHERE quiz_id=$1 ORDER BY id",[quizId]);',1);
 
-const ip='index.html';
-let h=fs.readFileSync(ip,'utf8');
+let h=fs.readFileSync('index.html','utf8');
 const tag='<script src="/exam-controls-ui.js"></script>';
-if(!h.includes(tag)){h=h.replace('</body>',tag+'</body>');fs.writeFileSync(ip,h)}
+if(!h.includes(tag)){h=h.replace('</body>',tag+'</body>');fs.writeFileSync('index.html',h)}
 fs.writeFileSync(p,'// Step 7 exam controls patched at startup.\n'+s);
 require('./password-reset.js');
 require('./server.js');
