@@ -17,9 +17,15 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: '22'
+      - name: Install dependencies
+        run: npm install
       - name: Check JavaScript syntax
         run: |
           for f in *.js; do
             echo "Checking $f"
             node --check "$f"
           done
+      - name: Check generated server syntax
+        run: |
+          node question-importer.js
+          node --check server.js
