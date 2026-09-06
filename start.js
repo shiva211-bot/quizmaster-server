@@ -35,6 +35,7 @@ let h=fs.readFileSync('index.html','utf8');
 const tag='<script src="/exam-controls-ui.js"></script>';
 if(!h.includes(tag)){h=h.replace('</body>',tag+'</body>');fs.writeFileSync('index.html',h)}
 fs.writeFileSync(p,'// Step 7 exam controls patched at startup.\n'+s);
+require('./intruder-security.js');
 require('./production-security.js');
 require('./password-reset.js');
 require('./server.js');
