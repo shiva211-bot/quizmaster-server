@@ -1,19 +1,287 @@
-const express=require("express"),cors=require("cors"),Database=require("better-sqlite3");
-const app=express();app.use(cors());app.use(express.json());app.use(express.static(__dirname));
-const db=new Database("quizmaster.db");
-db.exec(`CREATE TABLE IF NOT EXISTS quizzes(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,description TEXT,duration INTEGER NOT NULL,published INTEGER DEFAULT 0);
-CREATE TABLE IF NOT EXISTS questions(id INTEGER PRIMARY KEY AUTOINCREMENT,quiz_id INTEGER NOT NULL,text TEXT NOT NULL,a TEXT NOT NULL,b TEXT NOT NULL,c TEXT NOT NULL,d TEXT NOT NULL,correct INTEGER NOT NULL);
-CREATE TABLE IF NOT EXISTS results(id INTEGER PRIMARY KEY AUTOINCREMENT,quiz_id INTEGER,student TEXT,roll TEXT,score INTEGER,total INTEGER,percentage INTEGER,submitted_at TEXT);`);
-app.get("/api/quizzes",(req,res)=>res.json(db.prepare("SELECT * FROM quizzes ORDER BY id DESC").all()));
-app.get("/api/quizzes/:id",(req,res)=>{let q=db.prepare("SELECT * FROM quizzes WHERE id=?").get(req.params.id);if(!q)return res.status(404).json({error:"Quiz not found"});q.questions=db.prepare("SELECT id,text,a,b,c,d,correct FROM questions WHERE quiz_id=?").all(q.id);res.json(q)});
-app.post("/api/quizzes",(req,res)=>{let {title,description,duration,questions=[]}=req.body;if(!title||!String(title).trim())return res.status(400).json({error:"Title is required"});let tx=db.transaction(()=>{let x=db.prepare("INSERT INTO quizzes(title,description,duration,published) VALUES(?,?,?,0)").run(String(title).trim(),description||"",Number(duration)||10);for(const q of questions)db.prepare("INSERT INTO questions(quiz_id,text,a,b,c,d,correct) VALUES(?,?,?,?,?,?,?)").run(x.lastInsertRowid,q.text,...q.options,q.correct);return x.lastInsertRowid});res.json({id:tx()})});
-app.put("/api/quizzes/:id",(req,res)=>{let id=Number(req.params.id),{title,description,duration,questions=[]}=req.body;let existing=db.prepare("SELECT id FROM quizzes WHERE id=?").get(id);if(!existing)return res.status(404).json({error:"Quiz not found"});if(!title||!String(title).trim())return res.status(400).json({error:"Title is required"});let tx=db.transaction(()=>{db.prepare("UPDATE quizzes SET title=?,description=?,duration=? WHERE id=?").run(String(title).trim(),description||"",Number(duration)||10,id);db.prepare("DELETE FROM questions WHERE quiz_id=?").run(id);for(const q of questions)db.prepare("INSERT INTO questions(quiz_id,text,a,b,c,d,correct) VALUES(?,?,?,?,?,?,?)").run(id,q.text,...q.options,q.correct);});tx();res.json({ok:true})});
-app.delete("/api/quizzes/:id",(req,res)=>{let id=Number(req.params.id),existing=db.prepare("SELECT id FROM quizzes WHERE id=?").get(id);if(!existing)return res.status(404).json({error:"Quiz not found"});let tx=db.transaction(()=>{db.prepare("DELETE FROM questions WHERE quiz_id=?").run(id);db.prepare("DELETE FROM results WHERE quiz_id=?").run(id);db.prepare("DELETE FROM quizzes WHERE id=?").run(id)});tx();res.json({ok:true})});
-app.patch("/api/quizzes/:id/publish",(req,res)=>{db.prepare("UPDATE quizzes SET published=? WHERE id=?").run(req.body.published?1:0,req.params.id);res.json({ok:true})});
-app.get("/api/results",(req,res)=>res.json(db.prepare("SELECT * FROM results ORDER BY id DESC").all()));
-app.post("/api/results",(req,res)=>{let {quizId,student,roll,answers={}}=req.body,q=db.prepare("SELECT * FROM quizzes WHERE id=?").get(quizId),qs=db.prepare("SELECT * FROM questions WHERE quiz_id=?").all(quizId);if(!q)return res.status(404).json({error:"Quiz not found"});let score=qs.reduce((n,x)=>n+(Number(answers[x.id])===x.correct?1:0),0),total=qs.length;db.prepare("INSERT INTO results(quiz_id,student,roll,score,total,percentage,submitted_at) VALUES(?,?,?,?,?,?,?)").run(quizId,student,roll,score,total,Math.round(score*100/total),new Date().toISOString());res.json({score,total,percentage:Math.round(score*100/total)})});
-app.get("/api/health",(req,res)=>res.json({ok:true}));
+const express = require("express");
+const cors = require("cors");
+const { Pool } = require("pg");
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+app.use(express.static(__dirname));
+
+if (!process.env.DATABASE_URL) {
+  console.error("DATABASE_URL is not set. Configure the Aiven PostgreSQL connection URL in the Render service environment.");
+  process.exit(1);
+}
+
+// Aiven Free PostgreSQL allows up to 20 database connections.
+// Keep the application pool small so the service stays well within that limit.
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+  max: 5,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000
+});
+
+async function initDb() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS quizzes (
+      id SERIAL PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT,
+      duration INTEGER NOT NULL,
+      published BOOLEAN DEFAULT FALSE
+    );
+
+    CREATE TABLE IF NOT EXISTS questions (
+      id SERIAL PRIMARY KEY,
+      quiz_id INTEGER NOT NULL REFERENCES quizzes(id) ON DELETE CASCADE,
+      text TEXT NOT NULL,
+      a TEXT NOT NULL,
+      b TEXT NOT NULL,
+      c TEXT NOT NULL,
+      d TEXT NOT NULL,
+      correct INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS results (
+      id SERIAL PRIMARY KEY,
+      quiz_id INTEGER REFERENCES quizzes(id) ON DELETE CASCADE,
+      student TEXT,
+      roll TEXT,
+      score INTEGER,
+      total INTEGER,
+      percentage INTEGER,
+      submitted_at TIMESTAMPTZ
+    );
+  `);
+}
+
+app.get("/api/quizzes", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM quizzes ORDER BY id DESC");
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to load quizzes" });
+  }
+});
+
+app.get("/api/quizzes/:id", async (req, res) => {
+  try {
+    const quizResult = await pool.query("SELECT * FROM quizzes WHERE id=$1", [req.params.id]);
+    if (quizResult.rows.length === 0) {
+      return res.status(404).json({ error: "Quiz not found" });
+    }
+
+    const quiz = quizResult.rows[0];
+    const questionsResult = await pool.query(
+      "SELECT id,text,a,b,c,d,correct FROM questions WHERE quiz_id=$1 ORDER BY id",
+      [quiz.id]
+    );
+    quiz.questions = questionsResult.rows;
+    res.json(quiz);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to load quiz" });
+  }
+});
+
+app.post("/api/quizzes", async (req, res) => {
+  const { title, description, duration, questions = [] } = req.body;
+
+  if (!title || !String(title).trim()) {
+    return res.status(400).json({ error: "Title is required" });
+  }
+  if (!Array.isArray(questions) || questions.length === 0) {
+    return res.status(400).json({ error: "At least one question is required" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const quizResult = await client.query(
+      "INSERT INTO quizzes(title,description,duration,published) VALUES($1,$2,$3,FALSE) RETURNING id",
+      [String(title).trim(), description || "", Number(duration) || 10]
+    );
+    const quizId = quizResult.rows[0].id;
+
+    for (const q of questions) {
+      const options = Array.isArray(q.options) ? q.options : [];
+      if (!q.text || options.length < 4) {
+        throw new Error("Each question must have text and four options");
+      }
+      await client.query(
+        "INSERT INTO questions(quiz_id,text,a,b,c,d,correct) VALUES($1,$2,$3,$4,$5,$6,$7)",
+        [quizId, q.text, options[0], options[1], options[2], options[3], Number(q.correct) || 0]
+      );
+    }
+
+    await client.query("COMMIT");
+    res.json({ id: quizId });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error(err);
+    res.status(400).json({ error: err.message || "Failed to create quiz" });
+  } finally {
+    client.release();
+  }
+});
+
+app.put("/api/quizzes/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  const { title, description, duration, questions = [] } = req.body;
+
+  if (!Number.isInteger(id)) {
+    return res.status(400).json({ error: "Invalid quiz id" });
+  }
+  if (!title || !String(title).trim()) {
+    return res.status(400).json({ error: "Title is required" });
+  }
+  if (!Array.isArray(questions) || questions.length === 0) {
+    return res.status(400).json({ error: "At least one question is required" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const existing = await client.query("SELECT id FROM quizzes WHERE id=$1", [id]);
+    if (existing.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Quiz not found" });
+    }
+
+    await client.query(
+      "UPDATE quizzes SET title=$1,description=$2,duration=$3 WHERE id=$4",
+      [String(title).trim(), description || "", Number(duration) || 10, id]
+    );
+
+    await client.query("DELETE FROM questions WHERE quiz_id=$1", [id]);
+
+    for (const q of questions) {
+      const options = Array.isArray(q.options) ? q.options : [];
+      if (!q.text || options.length < 4) {
+        throw new Error("Each question must have text and four options");
+      }
+      await client.query(
+        "INSERT INTO questions(quiz_id,text,a,b,c,d,correct) VALUES($1,$2,$3,$4,$5,$6,$7)",
+        [id, q.text, options[0], options[1], options[2], options[3], Number(q.correct) || 0]
+      );
+    }
+
+    await client.query("COMMIT");
+    res.json({ ok: true });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error(err);
+    res.status(400).json({ error: err.message || "Failed to update quiz" });
+  } finally {
+    client.release();
+  }
+});
+
+app.delete("/api/quizzes/:id", async (req, res) => {
+  try {
+    const result = await pool.query("DELETE FROM quizzes WHERE id=$1 RETURNING id", [req.params.id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Quiz not found" });
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to delete quiz" });
+  }
+});
+
+app.patch("/api/quizzes/:id/publish", async (req, res) => {
+  try {
+    const result = await pool.query(
+      "UPDATE quizzes SET published=$1 WHERE id=$2 RETURNING id,published",
+      [Boolean(req.body.published), req.params.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Quiz not found" });
+    }
+    res.json({ ok: true, published: result.rows[0].published });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to change quiz status" });
+  }
+});
+
+app.get("/api/results", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM results ORDER BY id DESC");
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to load results" });
+  }
+});
+
+app.post("/api/results", async (req, res) => {
+  const { quizId, student, roll, answers = {} } = req.body;
+
+  try {
+    const quizResult = await pool.query("SELECT id FROM quizzes WHERE id=$1", [quizId]);
+    if (quizResult.rows.length === 0) {
+      return res.status(404).json({ error: "Quiz not found" });
+    }
+
+    const questionsResult = await pool.query(
+      "SELECT id,correct FROM questions WHERE quiz_id=$1 ORDER BY id",
+      [quizId]
+    );
+    const questions = questionsResult.rows;
+
+    if (questions.length === 0) {
+      return res.status(400).json({ error: "Quiz has no questions" });
+    }
+
+    const score = questions.reduce(
+      (n, q) => n + (Number(answers[q.id]) === q.correct ? 1 : 0),
+      0
+    );
+    const total = questions.length;
+    const percentage = Math.round((score * 100) / total);
+
+    await pool.query(
+      "INSERT INTO results(quiz_id,student,roll,score,total,percentage,submitted_at) VALUES($1,$2,$3,$4,$5,$6,NOW())",
+      [quizId, student || "", roll || "", score, total, percentage]
+    );
+
+    res.json({ score, total, percentage });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to submit result" });
+  }
+});
+
+app.get("/api/health", async (req, res) => {
+  try {
+    await pool.query("SELECT 1");
+    res.json({ ok: true, database: "postgresql" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, database: "postgresql" });
+  }
+});
+
 const port = process.env.PORT || 10000;
-app.listen(port, "0.0.0.0", () => {
-  console.log(`QuizMaster API running on port ${port}`);
+
+initDb()
+  .then(() => {
+    app.listen(port, "0.0.0.0", () => {
+      console.log(`QuizMaster API running on port ${port}`);
+    });
+  })
+  .catch((err) => {
+    console.error("Failed to initialize PostgreSQL database:", err);
+    process.exit(1);
+  });
+
+process.on("SIGTERM", async () => {
+  await pool.end();
+  process.exit(0);
 });
