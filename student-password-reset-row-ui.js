@@ -7,16 +7,21 @@
       .replace(/"/g,'&quot;')
       .replace(/'/g,'&#39;');
   }
+  function removeStandaloneResetCard(){
+    const card=document.getElementById('adminPasswordResetCard');
+    if(card)card.remove();
+  }
 
   window.renderPerformance=function(){
     const el=document.getElementById('performanceList');
     if(!el)return;
+    removeStandaloneResetCard();
     const rows=Array.isArray(window.report)?window.report:[];
     if(!rows.length){
       el.innerHTML='<div class="empty">No registered students.</div>';
       return;
     }
-    el.innerHTML=rows.map((s,i)=>{
+    el.innerHTML=rows.map(s=>{
       const id=Number(s.id);
       const name=esc(s.name||'Student');
       const username=esc(s.username||'');
@@ -65,8 +70,11 @@
         window.leaderStudents=window.report;
         window.renderPerformance();
       }catch(e){
-        if(window.token)console.log(e.message);
+        console.log(e.message||e);
       }
     };
   }
+
+  removeStandaloneResetCard();
+  new MutationObserver(removeStandaloneResetCard).observe(document.body,{childList:true,subtree:true});
 })();
