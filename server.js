@@ -11,4 +11,7 @@ app.patch("/api/quizzes/:id/publish",(req,res)=>{db.prepare("UPDATE quizzes SET 
 app.get("/api/results",(req,res)=>res.json(db.prepare("SELECT * FROM results ORDER BY id DESC").all()));
 app.post("/api/results",(req,res)=>{let {quizId,student,roll,answers={}}=req.body,q=db.prepare("SELECT * FROM quizzes WHERE id=?").get(quizId),qs=db.prepare("SELECT * FROM questions WHERE quiz_id=?").all(quizId);if(!q)return res.status(404).json({error:"Quiz not found"});let score=qs.reduce((n,x)=>n+(Number(answers[x.id])===x.correct?1:0),0),total=qs.length;db.prepare("INSERT INTO results(quiz_id,student,roll,score,total,percentage,submitted_at) VALUES(?,?,?,?,?,?,?)").run(quizId,student,roll,score,total,Math.round(score*100/total),new Date().toISOString());res.json({score,total,percentage:Math.round(score*100/total)})});
 app.get("/api/health",(req,res)=>res.json({ok:true}));
-app.listen(process.env.PORT||3000,()=>console.log("QuizMaster API running"));
+const port = process.env.PORT || 10000;
+app.listen(port, "0.0.0.0", () => {
+  console.log(`QuizMaster API running on port ${port}`);
+});
