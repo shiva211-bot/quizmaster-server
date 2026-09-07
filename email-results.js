@@ -21,7 +21,7 @@ s=s.replace('SELECT u.id,u.username,u.role,u.name,u.roll,u.phone,u.class_level,s
 s=s.replace('name:req.user.name,roll:req.user.roll,phone:req.user.phone,class_level:req.user.class_level','name:req.user.name,roll:req.user.roll,phone:req.user.phone,email:req.user.email,class_level:req.user.class_level',1);
 if(!s.includes('async function sendResultEmail(')){
  const marker='app.get("*",(req,res,next)=>';
- const fn='async function sendResultEmail(to,body){try{const url=process.env.EMAIL_API_URL,key=process.env.EMAIL_API_KEY,from=process.env.EMAIL_FROM;if(!url||!key||!from||!to)return {sent:false,reason:"Email provider is not configured"};const r=await fetch(url,{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},body:JSON.stringify({from,to,subject:"QuizMaster Test Result",text:body})});if(!r.ok){const t=await r.text();console.error("Email send failed:",r.status,t);return {sent:false,reason:"Email provider rejected the message"}}return {sent:true}}catch(e){console.error("Email send error:",e);return {sent:false,reason:"Email send failed"}}}\n';
+ const fn='async function sendResultEmail(to,body){try{const url=process.env.EMAIL_API_URL,key=process.env.EMAIL_API_KEY,from=process.env.EMAIL_FROM;if(!url||!key||!from||!to)return {sent:false,reason:"Email provider is not configured"};const r=await fetch(url,{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},body:JSON.stringify({from,to,subject:"QuizMaster Test Result",text:body})});if(!r.ok){const t=await r.text();console.error("Email send failed:",r.status,t);return {sent:false,reason:"Email provider rejected the message"}}return {sent:true}}catch(e){console.error("Email send error:",e);return {sent:false,reason:"Email send failed"}}}'+String.fromCharCode(10);
  if(!s.includes(marker))throw new Error('email patch: catch-all marker not found');
  s=s.replace(marker,fn+marker,1);
 }
@@ -31,7 +31,8 @@ let f=fs.readFileSync(fpPath,'utf8');
 if(!f.includes('emailSent:Boolean(email.sent)')){
  const re=/const sms=await sendResultSms\(req\.user\.phone,([\s\S]*?)\);res\.json\(\{resultId,score,total,percentage,smsSent:Boolean\(sms\.sent\)\}\)/;
  if(!re.test(f))throw new Error('email patch: result submission block not found');
- f=f.replace(re,(full,args)=>'const sms=await sendResultSms(req.user.phone,'+args+');const email=await sendResultEmail(req.user.email,"QuizMaster result\\n\\nQuiz: "+exam.title+"\\nScore: "+score+"/"+total+"\\nPercentage: "+percentage+"%\\n\\nOpen QuizMaster to view the full result and corrections.");res.json({resultId,score,total,percentage,smsSent:Boolean(sms.sent),emailSent:Boolean(email.sent)})');
+ const emailBody='"QuizMaster result "+String.fromCharCode(10,10)+"Quiz: "+exam.title+String.fromCharCode(10)+"Score: "+score+"/"+total+String.fromCharCode(10)+"Percentage: "+percentage+"%"+String.fromCharCode(10,10)+"Open QuizMaster to view the full result and corrections."';
+ f=f.replace(re,(full,args)=>'const sms=await sendResultSms(req.user.phone,'+args+');const email=await sendResultEmail(req.user.email,'+emailBody+');res.json({resultId,score,total,percentage,smsSent:Boolean(sms.sent),emailSent:Boolean(email.sent)})');
  fs.writeFileSync(fpPath,f);
 }
 console.log('QuizMaster email result delivery patch applied');
