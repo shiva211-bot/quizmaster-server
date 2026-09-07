@@ -23,3 +23,4 @@ global.percentage='${percentage}';
 global.questionOrder='${questionOrder}';
 try{require('./feature-pack.js')}finally{delete global.exam;delete global.score;delete global.total;delete global.percentage;delete global.questionOrder}
 require('./start.js');
+require('./db-indexes.js');
