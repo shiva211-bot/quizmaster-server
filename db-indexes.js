@@ -10,6 +10,8 @@ async function ensureIndexes(){
     await pool.query('CREATE INDEX IF NOT EXISTS idx_results_user_submitted ON results(user_id,submitted_at DESC)');
     await pool.query('CREATE INDEX IF NOT EXISTS idx_results_quiz_submitted ON results(quiz_id,submitted_at DESC)');
     await pool.query('CREATE INDEX IF NOT EXISTS idx_notifications_class_created ON notifications(class_level,created_at DESC,id DESC)');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_notification_reads_user ON notification_reads(user_id,notification_id)');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_result_answers_result ON result_answers(result_id,id)');
     console.log('QuizMaster performance indexes ready');
   }catch(e){
     console.error('Performance index migration skipped:',e.message);
