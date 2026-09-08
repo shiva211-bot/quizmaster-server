@@ -1,0 +1,14 @@
+const fs=require('fs');
+const p='question-importer-ui.js';
+let s=fs.readFileSync(p,'utf8');
+const marker='/* QUIZMASTER_IMPORT_SAVE_URL_FIX_V1 */';
+if(s.includes(marker))process.exit(0);
+const oldCreate="API+'/api/quizzes'";
+const oldPublish="API+'/api/quizzes/'+d.id+'/publish'";
+const newCreate="API+'/quizzes'";
+const newPublish="API+'/quizzes/'+d.id+'/publish'";
+if(!s.includes(oldCreate))throw new Error('Importer save URL marker not found');
+if(!s.includes(oldPublish))throw new Error('Importer publish URL marker not found');
+s=s.replace(oldCreate,newCreate).replace(oldPublish,newPublish);
+s='\n'+marker+'\n'+s.trimStart();
+fs.writeFileSync(p,s);
