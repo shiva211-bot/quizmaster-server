@@ -14,9 +14,7 @@ require('./student-phone.js');
 require('./student-report.js');
 require('./student-performance-ui.js');
 require('./email-results.js');
-// feature-pack.js contains generated server-side templates that must preserve
-// runtime placeholders such as ${exam.title}, ${score}, ${total}, ${percentage},
-// and ${questionOrder}. Seed literal placeholders while the feature pack is evaluated.
+require('./question-importer-save-fix.js');
 global.exam={title:'${exam.title}'};
 global.score='${score}';
 global.total='${total}';
