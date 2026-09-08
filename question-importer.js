@@ -1,16 +1,13 @@
 const fs=require('fs');
 const p='server.js';
 let s=fs.readFileSync(p,'utf8');
-const marker='/* QUIZMASTER_QUESTION_IMPORTER_V5 */';
-const oldV4='/* QUIZMASTER_QUESTION_IMPORTER_V4 */';
-const oldV3='/* QUIZMASTER_QUESTION_IMPORTER_V3 */';
-const oldV2='/* QUIZMASTER_QUESTION_IMPORTER_V2 */';
-const oldV1='/* QUIZMASTER_QUESTION_IMPORTER_V1 */';
-if(s.includes(oldV1))s=s.slice(0,s.indexOf(oldV1));
-else if(s.includes(oldV2))s=s.slice(0,s.indexOf(oldV2));
-else if(s.includes(oldV3))s=s.slice(0,s.indexOf(oldV3));
-else if(s.includes(oldV4))s=s.slice(0,s.indexOf(oldV4));
+const marker='/* QUIZMASTER_QUESTION_IMPORTER_V6 */';
+const oldMarkers=['/* QUIZMASTER_QUESTION_IMPORTER_V5 */','/* QUIZMASTER_QUESTION_IMPORTER_V4 */','/* QUIZMASTER_QUESTION_IMPORTER_V3 */','/* QUIZMASTER_QUESTION_IMPORTER_V2 */','/* QUIZMASTER_QUESTION_IMPORTER_V1 */'];
+for(const m of oldMarkers)if(s.includes(m)){s=s.slice(0,s.indexOf(m));break}
 if(s.includes(marker))process.exit(0);
+const oldValidation='const o=Array.isArray(q.options)?q.options.map(cleanText):[q.a,q.b,q.c,q.d].map(cleanText),c=Number(q.correct);if(o.length!==4||o.some(x=>!x))throw Error("MCQ questions require four options");if(![0,1,2,3].includes(c))throw Error("MCQ correct option is required");return{text,type,a:o[0],b:o[1],c:o[2],d:o[3],correct:c,answer:""}'
+const newValidation='let o=Array.isArray(q.options)?q.options.map(cleanText):[q.a,q.b,q.c,q.d].map(cleanText);while(o.length&&o[o.length-1]==="")o.pop();const c=Number(q.correct);if(o.length<2||o.length>4||o.some(x=>!x))throw Error("MCQ questions require two to four options");if(c<0||c>=o.length)throw Error("MCQ correct option is required");return{text,type,a:o[0]||"",b:o[1]||"",c:o[2]||"",d:o[3]||"",correct:c,answer:""}'
+if(s.includes(oldValidation))s=s.replace(oldValidation,newValidation);
 const code=`
 ${marker}
 const multer=require("multer");const pdfParse=require("pdf-parse");const mammoth=require("mammoth");
@@ -39,7 +36,7 @@ function __qmParse(raw){
  push();
  const pairs=__qmKey(keyText),uniqueKeys=new Map();for(const [n,a] of pairs){if(!uniqueKeys.has(n))uniqueKeys.set(n,a)}
  const errors=[],warnings=[],good=[];
- qs.forEach((x,i)=>{const miss=['A','B','C','D'].filter(k=>!x.o[k]);if(!x.text)errors.push('Question '+(i+1)+' has no question text');const multi=/select\\s+all\\s+possible\\s+options?/i.test(x.text);if(multi)errors.push('Question '+(i+1)+' is a multi-select question; single-answer import is required.');if(miss.length>0&&!(miss.length===2&&x.o.A&&x.o.B&&/^True$|^False$/i.test(x.o.A)&&/^True$|^False$/i.test(x.o.B)))errors.push('Question '+(i+1)+' is missing option(s): '+miss.join(', '));if(!x.answer&&uniqueKeys.has(x.number))x.answer=uniqueKeys.get(x.number);if(!x.answer)warnings.push('Question '+(i+1)+' has no answer-key entry');if(x.answer&&!x.o[x.answer])errors.push('Question '+(i+1)+' answer key points to missing option '+x.answer);const two=miss.length===2&&x.o.A&&x.o.B&&/^True$|^False$/i.test(x.o.A)&&/^True$|^False$/i.test(x.o.B);if(x.text&&!miss.length)good.push(x);else if(x.text&&two&&x.answer)good.push(x)});
+ qs.forEach((x,i)=>{const miss=['A','B','C','D'].filter(k=>!x.o[k]);if(!x.text)errors.push('Question '+(i+1)+' has no question text');const multi=/select\\s+all\\s+possible\\s+options?/i.test(x.text);if(multi)errors.push('Question '+(i+1)+' is a multi-select question; single-answer import is required.');const two=miss.length===2&&x.o.A&&x.o.B&&/^True$|^False$/i.test(x.o.A)&&/^True$|^False$/i.test(x.o.B);if(miss.length>0&&!two&&!multi)errors.push('Question '+(i+1)+' is missing option(s): '+miss.join(', '));if(!x.answer&&uniqueKeys.has(x.number))x.answer=uniqueKeys.get(x.number);if(!x.answer)warnings.push('Question '+(i+1)+' has no answer-key entry');if(x.answer&&!x.o[x.answer])errors.push('Question '+(i+1)+' answer key points to missing option '+x.answer);if(x.text&&!miss.length)good.push(x);else if(x.text&&two&&x.answer)good.push(x)});
  for(const [n] of uniqueKeys)if(!qs.some(x=>x.number===n))warnings.push('Answer key contains question '+n+' which was not detected');
  return {questions:good.filter(x=>!/select\\s+all\\s+possible\\s+options?/i.test(x.text)).map((x,i)=>({number:i+1,text:x.text,type:'mcq',options:[x.o.A,x.o.B,x.o.C,x.o.D].filter(Boolean),correct:x.answer?['A','B','C','D'].indexOf(x.answer):null})),totalQuestions:qs.length,answersDetected:qs.filter(x=>x.answer).length,answerKeyDetected:qs.some(x=>x.answer)||uniqueKeys.size>0,errors,warnings};
 }
